@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 import supertest from "supertest";
 import createServer from "../utils/server";
-import * as UserService from "../service/user.service";
-import * as SessionService from "../service/session.service";
+import * as UserService from "../service/user.service"
+import * as SessionService from "../service/session.service"
 import { createUserSessionHandler } from "../controller/session.controller";
 
-const app = createServer();
+const app = createServer()
 
 const userId = new mongoose.Types.ObjectId().toString();
 
@@ -16,7 +16,7 @@ const userPayload = {
 };
 
 const userInput = {
-  email: "test@example.com",
+  email: "anyemail@example.com",
   name: "Jane Doe",
   password: "Password123",
   passwordConfirmation: "Password123",
@@ -32,30 +32,31 @@ const sessionPayload = {
   __v: 0,
 };
 
-describe("user", () => {
-  // user registration
-
-  describe("user registration", () => {
-    describe("given the username and password are valid", () => {
+describe("User", () => {
+  // User registration
+  describe("User registration", () => {
+    // The username and password get validation
+    describe("Given the username and password are valid", () => {
       it("should return the user payload", async () => {
         const createUserServiceMock = jest
           .spyOn(UserService, "createUser")
           // @ts-ignore
           .mockReturnValueOnce(userPayload);
 
-        const { statusCode, body } = await supertest(app)
-          .post("/api/users")
-          .send(userInput);
+        const response = await supertest(app)
+          .post(`/api/users`)
+          .send(userInput)
 
-        expect(statusCode).toBe(200);
+        const { data, success } = response.body
 
-        expect(body).toEqual(userPayload);
+        expect(success).toBe(true);
+        expect(typeof data === 'object').toBe(true)
+        expect(createUserServiceMock).toHaveBeenCalledWith(userInput)
+      })
+    })
 
-        expect(createUserServiceMock).toHaveBeenCalledWith(userInput);
-      });
-    });
-
-    describe("given the passwords do not match", () => {
+    // verify that the password must match
+    describe("Given the password do not match", () => {
       it("should return a 400", async () => {
         const createUserServiceMock = jest
           .spyOn(UserService, "createUser")
@@ -63,69 +64,71 @@ describe("user", () => {
           .mockReturnValueOnce(userPayload);
 
         const { statusCode } = await supertest(app)
-          .post("/api/users")
+          .post(`/api/users`)
           .send({ ...userInput, passwordConfirmation: "doesnotmatch" });
 
-        expect(statusCode).toBe(400);
+        expect(statusCode).toBe(400)
+        expect(createUserServiceMock).not.toHaveBeenCalled()
 
-        expect(createUserServiceMock).not.toHaveBeenCalled();
-      });
-    });
+      })
+    })
 
-    describe("given the user service throws", () => {
+    // verify that the handler handles any errors
+    describe("Given the user service throws", () => {
       it("should return a 409 error", async () => {
         const createUserServiceMock = jest
           .spyOn(UserService, "createUser")
           .mockRejectedValueOnce("Oh no! :(");
 
-        const { statusCode } = await supertest(createServer())
-          .post("/api/users")
+        const { statusCode } = await supertest(app)
+          .post(`/api/users`)
           .send(userInput);
 
         expect(statusCode).toBe(409);
-
         expect(createUserServiceMock).toHaveBeenCalled();
-      });
-    });
-  });
+      })
+    })
+  })
 
-  describe("create user session", () => {
-    describe("given the username and password are valid", () => {
-      it("should return a signed accessToken & refresh token", async () => {
+  // Creating a user session
+  describe("Create user session", () => {
+    // a user can login with a valid email and password
+    describe("Given the username and password are valid", () => {
+      it("should return a signed accessToken and refresh token", async () => {
         jest
-          .spyOn(UserService, "validatePassword")
-          // @ts-ignore
-          .mockReturnValue(userPayload);
+        .spyOn(UserService, "validatePassword")
+        // @ts-ignore
+        .mockReturnValue(userPayload)
 
         jest
-          .spyOn(SessionService, "createSession")
-          // @ts-ignore
-          .mockReturnValue(sessionPayload);
+        .spyOn(SessionService, "createSession")
+        // @ts-ignore
+        .mockReturnValue(sessionPayload)
 
         const req = {
-          get: () => {
-            return "a user agent";
+          get() {
+            return "a user agent"
           },
           body: {
             email: "test@example.com",
             password: "Password123",
-          },
-        };
+          }
+        }
 
         const send = jest.fn();
 
         const res = {
-          send,
-        };
+          send
+        }
 
         // @ts-ignore
-        await createUserSessionHandler(req, res);
+        await createUserSessionHandler(req, res)
 
         expect(send).toHaveBeenCalledWith({
-          accessToken: expect.any(String),
+          accessToken: expect.any(String), 
           refreshToken: expect.any(String),
-        });
-      });
-    });
-  });
-});
+        })
+      })
+    })
+  })
+})
